@@ -1,0 +1,8 @@
+*.gch
+/.vscode/
+*.o
+*.out
+c++/Makefile.win
+c++/Esay.dev
+c++/Esay.layout
+c++/Esay.exe
