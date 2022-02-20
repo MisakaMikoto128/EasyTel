@@ -18,7 +18,9 @@
 #define SIMPLEDPP_CRC_CHECK_ERROR -23
 
 // cast char * to byte *
-#define byte unsigned char
+
+#define byte char
+
 #define CAST_CHAR_PTR_TO_BYTE_PTR(ptr) (byte *)(ptr)
 
 // SimpleDPP receive state machine's states
@@ -32,38 +34,6 @@ typedef int SimpleDPPERROR;
 #define EOT 0x04 // DEC: 4
 #define ESC 0x18 // DEC: 27
 #define containSimpleDPPCtrolByte(c) ((c) == SOH || (c) == EOT || (c) == ESC)
-
-template <typename T>
-struct RecvCallbackFun_t
-{
-    T *obj;
-    void (T::*fun)(const byte *data, const size_t len);
-    RecvCallbackFun_t()
-    {
-        obj = nullptr;
-        fun = nullptr;
-    }
-
-    RecvCallbackFun_t(T *obj, void (T::*func)(const byte *data, const size_t len))
-    {
-
-        this->obj = obj;
-        this->func = func;
-    }
-
-    void operator()(const byte *data, const size_t len)
-    {
-        if (isCallAbled())
-        {
-            (this->obj->*(this->func))(data, len);
-        }
-    }
-
-    bool isCallAbled()
-    {
-        return this->obj != nullptr && this->func != nullptr;
-    }
-};
 
 class SimpleDPP
 {
@@ -107,29 +77,46 @@ private:
     std::function<void(const std::vector<byte> &senddata)> SendBuffer = nullptr;
 
 public:
+    /**
+     * @brief
+     *
+     * @tparam T
+     * @param obj T * pointer
+     * @param func T::func
+     */
     template <class T>
     void bindRecvCallback(T *obj, void (T::*func)(const std::vector<byte> &revdata))
     {
-        auto lambda = [obj, func](const std::vector<byte> &data)
-        { (obj->*func)(data); };
+        auto lambda = [obj, func](const std::vector<byte> &revdata)
+        { (obj->*func)(revdata); };
         RecvCallback = lambda;
     }
-
+    /**
+     * @brief
+     *
+     * @tparam T
+     * @param obj T * pointer
+     * @param func T::func
+     */
     template <class T>
     void bindRevErrorCallback(T *obj, void (T::*func)(SimpleDPPERROR error_code))
     {
-        auto lambda = [obj, func](SimpleDPPERROR error_code_)
-        { (obj->*func)(error_code_); };
-
+        auto lambda = [obj, func](SimpleDPPERROR error_code)
+        { (obj->*func)(error_code); };
         RevErrorCallback = lambda;
     }
-
+    /**
+     * @brief
+     *
+     * @tparam T
+     * @param obj T * pointer
+     * @param func T::func
+     */
     template <class T>
     void bindSendBuffer(T *obj, void (T::*func)(const std::vector<byte> &senddata))
     {
-        auto lambda = [obj, func](const std::vector<byte> &data)
-        { (obj->*func)(data); };
-
+        auto lambda = [obj, func](const std::vector<byte> &senddata)
+        { (obj->*func)(senddata); };
         SendBuffer = lambda;
     }
 
@@ -165,6 +152,15 @@ public:
             parse(data[i]);
         }
     }
+
+    void parse(const std::vector<byte> &data)
+    {
+        for (int i = 0; i < data.size(); i++)
+        {
+            parse(data[i]);
+        }
+    }
+    
     int getSimpleDPPErrorCnt() { return SimpleDPPErrorCnt; }
 
     void parse(byte c)
@@ -287,7 +283,16 @@ public:
 
 public:
     /**
-     * @brief must be used before rev_datas_add() and rev_datas_end()
+     * @brief send_datas : simpledpp send data
+     * @param first data object will be send.
+     * @param second data object byte length.
+     * @param rest variable parameter
+     * @return The number of bytes actually sent
+     * @example send float and string:
+     * float a = 1f;
+     * char[] str = "simpledpp";
+     * char *p = &str[0];
+     * send_datas(&a,sizeof(a),str,sizeof(str),p,sizeof(str));
      */
     template <typename First, typename Second, typename... Rest>
     int send_datas(const First &first, const Second &second, const Rest &...rest)

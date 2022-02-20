@@ -15,14 +15,14 @@ class iotest
 public:
     explicit iotest()
     {
-        sdp.bindSendBuffer([&](const std::vector<byte> &senddata)
-                           {
+        sdp.bindSendBuffer([&](const std::vector<byte> &senddata){
          cout << "senddata: " << endl;
          for(auto &i : senddata)
          {
              cout <<hex<< (int)i << " ";
          }
          cout << endl;
+         sdp.parse(senddata); 
          });
 
         etp = new EasyTelPoint(sdp);

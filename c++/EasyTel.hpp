@@ -29,17 +29,18 @@ public:
     static constexpr bu_uint8 R_EXIST_POINT = 0x01;
     static constexpr bu_uint8 Q_ENDIAN = 0x02;
     static constexpr bu_uint8 R_ENDIAN = 0x03;
-    static constexpr bu_uint8 CMD_MAX = 0xFF;
-
+    
+    static constexpr bu_uint8 CALLBACK_LIST_LENGTH = 0xFF;
+    static constexpr bu_uint8 CMD_MAX = CALLBACK_LIST_LENGTH;
 private:
     Endian endian;
     bool need_to_change_endian;
     bool found_point;
 
-    std::function<void(const bu_byte *data, bu_uint32 len)> callback_list[0xFF];
+    std::function<void(const bu_byte *data, bu_uint32 len)> callback_list[CALLBACK_LIST_LENGTH];
     SimpleDPP &sdp;
     std::thread *rev_thread = nullptr;
-
+    int thread_delay_ms = 200;
     // thread control
     bool close_rev_thread = false;
 
@@ -50,7 +51,7 @@ public:
         need_to_change_endian = false;
         found_point = false;
 
-        for (int i = 0; i < 0xFF; i++)
+        for (int i = 0; i < CALLBACK_LIST_LENGTH; i++)
         {
             callback_list[i] = nullptr;
         }
@@ -130,9 +131,9 @@ public:
 
         break;
         default:
-            if (callback_list[cmd] != nullptr)
+            if (callback_list[cmd] != nullptr && cmd < CALLBACK_LIST_LENGTH)
             {
-                callback_list[cmd](revdata.data() + 1, revdata.size() - 1);
+                callback_list[cmd]((bu_byte*)revdata.data() + 1, revdata.size() - 1);
             }
             break;
             break;
@@ -156,7 +157,7 @@ public:
                 while (!found_point)
                 {
                     send(Q_EXIST_POINT);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(thread_delay_ms));
                 }
                 close_rev_thread = true;
             } });
