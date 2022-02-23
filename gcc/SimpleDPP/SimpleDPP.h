@@ -2,7 +2,6 @@
 #define _SIMPLE_DPP_H_
 #include "ByteBuffer.h"
 #include <stdarg.h>
-#include <stddef.h>
 
 /*C compiler standard support*/
 //#define SIMPLEDPP_SUPPORT_C89

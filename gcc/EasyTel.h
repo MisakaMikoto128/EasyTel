@@ -2,7 +2,6 @@
 #ifndef _EASYTEL_H_
 #define _EASYTEL_H_
 /* Includes */
-#include <stdbool.h>
 #include "SimpleDPP/SimpleDPP.h"
 #include "BytesUtil/BytesUtil.h"
 
