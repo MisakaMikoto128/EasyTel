@@ -6,26 +6,28 @@
 #include <cstring>
 using namespace std;
 
-
 class iotest
 {
 
-    SimpleDPP sdp;
     EasyTelPoint *etp;
+
 public:
     explicit iotest()
     {
-        sdp.bindSendBuffer([&](const std::vector<byte> &senddata){
+    	etp = new EasyTelPoint();
+        etp->bindSendBuffer([&](const std::vector<byte> &senddata)
+                            {
          cout << "senddata: " << endl;
          for(auto &i : senddata)
          {
              cout <<hex<< (int)i << " ";
          }
+         SimpleDPP &sdp = etp->getSimpleDPP();
+         sdp.parse(senddata);
          cout << endl;
-         sdp.parse(senddata); 
-         });
+        });
 
-        etp = new EasyTelPoint(sdp);
+        
         etp->registerCmdCallback(0x05, this, &iotest::test);
         etp->start();
     }
@@ -35,12 +37,12 @@ public:
         etp->stop();
         delete etp;
     }
+
 public:
     int exec()
     {
         while (true)
         {
-            
         }
         return 0;
     }
@@ -49,8 +51,6 @@ public:
     {
         cout << "test" << endl;
     }
-
-
 };
 
 #endif // IOTEST_HPP

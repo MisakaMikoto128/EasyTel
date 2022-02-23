@@ -132,7 +132,7 @@ public:
 
     void bindSendBuffer(std::function<void(const std::vector<byte> &senddata)> SendBuffer)
     {
-        this->SendBuffer = SendBuffer;
+        this->SendBuffer = SendBuffer; 
     }
 
 public:

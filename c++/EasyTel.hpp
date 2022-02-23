@@ -6,7 +6,7 @@
 #include <vector>
 #include <functional>
 #include <thread>
-#define DEBUG
+// #define DEBUG
 
 #ifdef DEBUG
 #include <iostream>
@@ -29,23 +29,24 @@ public:
     static constexpr bu_uint8 R_EXIST_POINT = 0x01;
     static constexpr bu_uint8 Q_ENDIAN = 0x02;
     static constexpr bu_uint8 R_ENDIAN = 0x03;
-    
+
     static constexpr bu_uint8 CALLBACK_LIST_LENGTH = 0xFF;
     static constexpr bu_uint8 CMD_MAX = CALLBACK_LIST_LENGTH;
+
 private:
     Endian endian;
     bool need_to_change_endian;
     bool found_point;
 
     std::function<void(const bu_byte *data, bu_uint32 len)> callback_list[CALLBACK_LIST_LENGTH];
-    SimpleDPP &sdp;
+    SimpleDPP sdp;
     std::thread *rev_thread = nullptr;
     int thread_delay_ms = 200;
     // thread control
     bool close_rev_thread = false;
 
 public:
-    EasyTelPoint(SimpleDPP &sdp_) : sdp(sdp_)
+    EasyTelPoint()
     {
         endian = BytesUtil::getSelfEndian();
         need_to_change_endian = false;
@@ -93,6 +94,24 @@ public:
         }
     }
 
+    /**
+     * @brief
+     *
+     * @tparam T
+     * @param obj T * pointer
+     * @param func T::func
+     */
+    template <class T>
+    void bindSendBuffer(T *obj, void (T::*func)(const std::vector<byte> &senddata))
+    {
+        sdp.bindSendBuffer(obj, func);
+    }
+
+    void bindSendBuffer(std::function<void(const std::vector<byte> &senddata)> SendBuffer)
+    {
+        sdp.bindSendBuffer(SendBuffer);
+    }
+
     bool send(bu_byte cmd, const char *data = nullptr, bu_uint32 len = 0)
     {
         bu_uint32 send_len = sdp.send_datas(&cmd, sizeof(cmd), data, len);
@@ -133,7 +152,7 @@ public:
         default:
             if (callback_list[cmd] != nullptr && cmd < CALLBACK_LIST_LENGTH)
             {
-                callback_list[cmd]((bu_byte*)revdata.data() + 1, revdata.size() - 1);
+                callback_list[cmd]((bu_byte *)revdata.data() + 1, revdata.size() - 1);
             }
             break;
             break;
@@ -142,7 +161,6 @@ public:
 
     void SimpleDPPRevErrorCallback(SimpleDPPERROR error_code)
     {
-        
     }
 
     void start()
@@ -178,6 +196,11 @@ public:
     bool foundPoint()
     {
         return found_point;
+    }
+
+    SimpleDPP & getSimpleDPP()
+    {
+        return sdp;
     }
 };
 
