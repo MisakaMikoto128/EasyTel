@@ -7,3 +7,5 @@
 *.layout
 *.exe
 Makefile.win
+test*
+gcc/get_function_statement_of_c_source_file.sh

@@ -1,9 +1,6 @@
 /* Includes */
 #include "EasyTel.h"
 
-/*Global */
-static pEasyTelPoint easyTelPoint = NULL;
-
 /*const variable definition */
 
 #define Q_EXIST_POINT 0x00
@@ -18,7 +15,9 @@ Q_开头，表示询问命令
 R_开头，表示回复命令
 */
 
-void EasyTelPoint_Constructor(EasyTelPoint *etp)
+static void SimpleDPPRecvCallback(void * callback_arg, const sdp_byte *data, int len);
+static void SimpleDPPRevErrorCallback(void * callback_arg,SimpleDPPERROR error_code);
+void EasyTelPoint_Constructor(EasyTelPoint *etp,sdp_byte *send_buffer,int send_buffer_capacity,sdp_byte *recv_buffer,int recv_buffer_capacity,SimpleDPP_putchar_t SimpleDPP_putchar)
 {
     etp->endian = getSelfEndian();
     etp->need_to_change_endian = false;
@@ -28,15 +27,19 @@ void EasyTelPoint_Constructor(EasyTelPoint *etp)
         etp->callback_list[i] = NULL;
     }
     etp->close_rev_thread = true;
-    easyTelPoint = etp;
     EasyTel_start(etp);
-    SimpleDPP_init();
+    SimpleDPP_Constructor(&etp->sdp_o,
+    send_buffer,send_buffer_capacity,
+    recv_buffer,recv_buffer_capacity,
+    SimpleDPPRecvCallback,
+    SimpleDPPRevErrorCallback,
+    SimpleDPP_putchar,
+    etp);
 }
 
 void EsayTelPoint_Destructor(EasyTelPoint *etp)
 {
     etp->close_rev_thread = true;
-    easyTelPoint = NULL;
 }
 
 bool registerCmdCallback(EasyTelPoint *etp, bu_uint8 cmd, EasyTelCmdCallback_C callback)
@@ -52,13 +55,14 @@ bool registerCmdCallback(EasyTelPoint *etp, bu_uint8 cmd, EasyTelCmdCallback_C c
     }
 }
 
-bool EasyTel_send(bu_byte cmd, const char *data, bu_uint32 len)
+bool EasyTel_send(EasyTelPoint *etp, bu_byte cmd, const char *data, bu_uint32 len)
 {
-    return SimpleDPP_send_datas(&cmd, sizeof(cmd), data, len);
+    return SimpleDPP_send_datas(&etp->sdp_o,&cmd, sizeof(cmd), data, len);
 }
 
-__implemented void SimpleDPPRecvCallback(const byte *data, int len)
+__implemented static void SimpleDPPRecvCallback(void * callback_arg, const sdp_byte *data, int len)
 {
+    EasyTelPoint *easyTelPoint = (EasyTelPoint *)callback_arg;
     if (easyTelPoint == NULL)
     {
         return;
@@ -70,7 +74,7 @@ __implemented void SimpleDPPRecvCallback(const byte *data, int len)
     case Q_EXIST_POINT:
     {
         char endian_ = (char)(easyTelPoint->endian);
-        EasyTel_send(R_EXIST_POINT, &endian_, sizeof(endian_));
+        EasyTel_send(easyTelPoint,R_EXIST_POINT, &endian_, sizeof(endian_));
     }
 
     break;
@@ -83,7 +87,7 @@ __implemented void SimpleDPPRecvCallback(const byte *data, int len)
 
     break;
     case Q_ENDIAN:
-        EasyTel_send(R_ENDIAN, "", 0);
+        EasyTel_send(easyTelPoint,R_ENDIAN, "", 0);
         break;
     case R_ENDIAN:
     {
@@ -102,7 +106,7 @@ __implemented void SimpleDPPRecvCallback(const byte *data, int len)
     }
 }
 
-__implemented void SimpleDPPRevErrorCallback(SimpleDPPERROR error_code)
+__implemented static void SimpleDPPRevErrorCallback(void * callback_arg,SimpleDPPERROR error_code)
 {
 }
 
@@ -127,7 +131,7 @@ bool EasyTel_foundPoint(EasyTelPoint *etp)
 }
 
 
-#include <stdio.h>
+
 /*如果使用操作系统，将其作为一个线程或者一个task,并且实现*/
 /**
  * @brief 作为Master设备去发现总线上的子设备
@@ -141,7 +145,7 @@ void EasyTel_AsMaster_FindPeer_Thread(EasyTelPoint *etp)
         bu_uint32 cnt = 0;
         while (!etp->found_point)
         {
-            EasyTel_send(Q_EXIST_POINT,"",0);
+            EasyTel_send(etp,Q_EXIST_POINT,"",0);
             
             EasyTel_ThreadDelay(etp->thread_delay_ms);
         }
@@ -158,7 +162,7 @@ void EasyTel_AsMaster_FindPeer_ScanMeta(EasyTelPoint *etp)
         static bu_uint32 cnt = 0;
         if (!etp->found_point)
         {
-            EasyTel_send(Q_EXIST_POINT, "", 0);
+            EasyTel_send(etp,Q_EXIST_POINT, "", 0);
         }
         else
         {
