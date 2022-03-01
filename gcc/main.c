@@ -21,7 +21,7 @@ void test(const bu_byte *data, bu_uint32 len)
     printf("test\n");
 }
 
-void EasyTel_ThreadDelay(int ms)
+__implemented void EasyTel_ThreadDelay(int ms)
 {
     usleep(ms * 1000);
 }
