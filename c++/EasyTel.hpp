@@ -3,9 +3,11 @@
 #define _EASYTEL_H_
 #include "BytesUtil.hpp"
 #include "SimpleDPP.hpp"
+#include "LTimer.hpp"
 #include <vector>
 #include <functional>
 #include <thread>
+#include <atomic>
 // #define DEBUG
 
 #ifdef DEBUG
@@ -13,6 +15,7 @@
 using namespace std;
 #endif
 
+#define UNUSED(x) (void)(x)
 typedef std::function<void(const bu_byte *data, bu_uint32 len)> EasyTelCmdCallback;
 
 /*
@@ -35,16 +38,20 @@ public:
 
 private:
     Endian endian;
-    bool need_to_change_endian;
-    bool found_point;
+    std::atomic<bool> need_to_change_endian{false};
+    std::atomic<bool> found_point{false};
 
     std::function<void(const bu_byte *data, bu_uint32 len)> callback_list[CALLBACK_LIST_LENGTH];
     SimpleDPP sdp;
-    std::thread *rev_thread = nullptr;
-    int thread_delay_ms = 200;
+    std::thread *find_peer_thread = nullptr;
+    int thread_delay_ms = 500;
+    int find_peer_repeat = 10;
     // thread control
-    bool close_rev_thread = false;
 
+    std::atomic<bool> close_find_peer_thread{false};
+
+    //if not find peer,invoke this method
+    std::function<bool(void)> find_peer_iteration_callback = nullptr;
 public:
     EasyTelPoint()
     {
@@ -61,12 +68,7 @@ public:
     }
     ~EasyTelPoint()
     {
-        if (rev_thread != nullptr)
-        {
-            rev_thread->join();
-            delete rev_thread;
-        }
-        close_rev_thread = true;
+        stop();
     }
     /**
      * @brief
@@ -118,6 +120,14 @@ public:
         return send_len > 0;
     }
 
+    void parse(const std::vector<byte> &data){
+        sdp.parse(data);
+    }
+
+    void parse(const byte *data, int len){
+        sdp.parse(data,len);
+    }
+
     void SimpleDPPRecvCallback(const std::vector<byte> &revdata)
     {
         bu_uint8 cmd = revdata[0];
@@ -130,7 +140,7 @@ public:
             send(R_EXIST_POINT, &endian_, sizeof(endian_));
         }
 
-        break;
+            break;
         case R_EXIST_POINT:
         {
             Endian peer_endian = (Endian)revdata[1];
@@ -138,7 +148,7 @@ public:
             found_point = true;
         }
 
-        break;
+            break;
         case Q_ENDIAN:
             send(R_ENDIAN);
             break;
@@ -148,7 +158,7 @@ public:
             need_to_change_endian = (peer_endian != endian);
         }
 
-        break;
+            break;
         default:
             if (callback_list[cmd] != nullptr && cmd < CALLBACK_LIST_LENGTH)
             {
@@ -161,36 +171,58 @@ public:
 
     void SimpleDPPRevErrorCallback(SimpleDPPERROR error_code)
     {
+        UNUSED(error_code);
     }
 
     void start()
     {
 
-        close_rev_thread = false;
-        rev_thread = new std::thread([&]()
-                                     {
-            while (!close_rev_thread)
+        close_find_peer_thread = false;
+        find_peer_thread = new std::thread([&]()
+        {
+            while (!close_find_peer_thread.load())
             {
-                bu_uint32 cnt = 0;
-                while (!found_point)
-                {
-                    send(Q_EXIST_POINT);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(thread_delay_ms));
+                if(found_point.load()){
+                    stop();
+                }else{
+                    if(find_peer_iteration_callback!=nullptr){
+                        bool have_next = find_peer_iteration_callback();
+                        if(have_next == false){
+                            stop();
+                            continue;
+                        }
+                    }
                 }
-                close_rev_thread = true;
-            } });
 
-        rev_thread->detach();
+                LTimer tim_find_peer;
+                tim_find_peer.setReapet([&]{
+                    if(found_point.load()){
+                        tim_find_peer.stop();
+                    }
+                    send(Q_EXIST_POINT);
+                },thread_delay_ms,find_peer_repeat);
+            }
+
+
+            delete find_peer_thread;
+
+        });
+
+        find_peer_thread->detach();
+
     }
 
     void stop()
     {
-        close_rev_thread = true;
+        if (find_peer_thread != nullptr)
+        {
+            close_find_peer_thread.store(true);
+        }
     }
 
     bool isRunning()
     {
-        return !close_rev_thread;
+        return !close_find_peer_thread;
     }
 
     bool foundPoint()
@@ -202,6 +234,18 @@ public:
     {
         return sdp;
     }
+    inline void setFind_peer_iteration_callback(const std::function<bool(void)> &find_peer_iteration_callback)
+    {
+        this->find_peer_iteration_callback = find_peer_iteration_callback;
+    }
+    bool isFoundPoint() const
+    {
+        return found_point.load();
+    }
 };
+
+
+
+
 
 #endif // _EASYTEL_H_
