@@ -84,7 +84,7 @@ public:
     template <typename T>
     bool registerCmdCallback(const bu_byte cmd, T *obj, void (T::*callback)(const bu_byte *data, bu_uint32 len))
     {
-        if (callback == nullptr || cmd <= R_ENDIAN || cmd > CMD_MAX)
+        if (callback == nullptr || cmd <= R_ENDIAN || cmd >= CMD_MAX)
         {
             return false;
         }
@@ -93,6 +93,20 @@ public:
             auto lambda = [obj, callback](const bu_byte *data, bu_uint32 len)
             { (obj->*callback)(data, len); };
             callback_list[cmd] = lambda;
+            return true;
+        }
+    }
+
+
+    bool registerCmdCallback(const bu_byte cmd, std::function<void(const bu_byte *data, bu_uint32 len)> callback)
+    {
+        if (callback == nullptr || cmd <= R_ENDIAN || cmd >= CMD_MAX)
+        {
+            return false;
+        }
+        else
+        {
+            callback_list[cmd] = callback;
             return true;
         }
     }

@@ -32,7 +32,7 @@ int main(void)
 
     registerCmdCallback(&etp_o, 0x05, test);
 
-    EasyTel_AsMaster_FindPeer_Thread(&etp_o);
+    EasyTel_AsMaster_FindPeer_Thread_Func(&etp_o);
 
     return 0;
 }

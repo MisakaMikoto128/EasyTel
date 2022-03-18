@@ -46,7 +46,7 @@ void EasyTel_start(EasyTelPoint *etp);
 void EasyTel_stop(EasyTelPoint *etp);
 bool EasyTel_isRunning(EasyTelPoint *etp);
 bool EasyTel_foundPoint(EasyTelPoint *etp);
-void EasyTel_AsMaster_FindPeer_Thread(EasyTelPoint *etp);
+void EasyTel_AsMaster_FindPeer_Thread_Func(EasyTelPoint *etp);
 void EasyTel_AsMaster_FindPeer_ScanMeta(EasyTelPoint *etp);
 
 #endif // _EASYTEL_H_

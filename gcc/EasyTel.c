@@ -102,12 +102,12 @@ __implemented static void SimpleDPPRecvCallback(void * callback_arg, const sdp_b
             easyTelPoint->callback_list[cmd](data + 1, len - 1);
         }
         break;
-        break;
     }
 }
 
 __implemented static void SimpleDPPRevErrorCallback(void * callback_arg,SimpleDPPERROR error_code)
 {
+    
 }
 
 void EasyTel_start(EasyTelPoint *etp)
@@ -138,7 +138,7 @@ bool EasyTel_foundPoint(EasyTelPoint *etp)
  *
  * @param etp
  */
-void EasyTel_AsMaster_FindPeer_Thread(EasyTelPoint *etp)
+void EasyTel_AsMaster_FindPeer_Thread_Func(EasyTelPoint *etp)
 {
     while (!etp->close_rev_thread)
     {
